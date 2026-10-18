@@ -46,6 +46,9 @@ for (const w of [400, 500, 600, 700]) {
   fontCss += `@font-face{font-family:'Inter';font-style:normal;font-weight:${w};font-display:swap;src:url(fonts/inter-${w}.woff2) format('woff2');}\n`;
 }
 
+// ---- Biblioteca de hinos (480 .mxl + index.json) ----
+if (fs.existsSync('hinos')) fs.cpSync('hinos', path.join(WWW, 'hinos'), { recursive: true });
+
 // ---- Ajustes no index.html (só na cópia) ----
 let html = fs.readFileSync('index.html', 'utf8');
 function replaceOnce(re, to, what) {
@@ -65,7 +68,7 @@ replaceOnce(/@import url\('https:\/\/cdn\.jsdelivr\.net\/fontsource\/fonts\/inte
 replaceOnce(/if\('serviceWorker' in navigator\)\{/, 'if(false){', 'registro do service worker');
 
 // 4) Importar MIDI: sem filtro de extensão (o seletor do Android às vezes esconde .mid com o filtro)
-const acceptRe = /(<input type="file" id="(?:fileInput|welcomeFileInput)") accept="\.mid,\.midi"/g;
+const acceptRe = /(<input type="file" id="(?:fileInput|welcomeFileInput)") accept="\.mid,\.midi,\.mxl,\.xml,\.musicxml"/g;
 if ((html.match(acceptRe) || []).length !== 2) fail('Campos de arquivo MIDI não encontrados (esperava 2).');
 html = html.replace(acceptRe, '$1');
 
