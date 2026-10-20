@@ -1,6 +1,6 @@
 // Mude este número a CADA publicação nova no GitHub (v3 -> v4 -> v5...)
-const CACHE_NAME = 'flute-bounce-v4';
-const CORE = ['./', './index.html', './manifest.json'];
+const CACHE_NAME = 'flute-bounce-v5';
+const CORE = ['./', './index.html', './manifest.json', './pro-config.js'];
 const EXTRA = [
   './icon-192x192.png', './icon-512x512.png', './apple-touch-icon.png', './favicon-32x32.png',
   'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js',
