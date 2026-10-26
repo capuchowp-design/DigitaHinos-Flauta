@@ -1,7 +1,7 @@
 {
-  "name": "Flute Bounce - Visualizador MIDI",
-  "short_name": "Flute Bounce",
-  "description": "Visualizador MIDI com flauta transversal animada e digitação",
+  "name": "DigitaHinos Flauta",
+  "short_name": "DigitaHinos Flauta",
+  "description": "480 hinos com flauta transversal animada e digitação",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "any",
