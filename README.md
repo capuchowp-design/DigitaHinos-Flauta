@@ -1,6 +1,6 @@
-# flutetab
+# DigitaHinos Flauta
 
-**Flute Bounce** - visualizador MIDI com flauta transversal animada, no estilo do saxtab.
+**DigitaHinos Flauta** - 480 hinos e visualizador MIDI com flauta transversal animada. 100% gratuito.
 
 - **Player**: abra um MIDI e veja a flauta tocando, com a digitação (mão esquerda vermelha, direita verde), a nota na pauta e o nome em solfejo. Quando a nota tem outra digitação, ela aparece menor no canto; toque nela para trocar.
 - **Partitura**: editor em piano roll (vozes, acordes, articulações, ligaduras), com a digitação da nota selecionada.
