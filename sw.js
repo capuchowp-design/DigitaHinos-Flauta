@@ -1,5 +1,5 @@
 // Mude este número a CADA publicação nova no GitHub (v3 -> v4 -> v5...)
-const CACHE_NAME = 'flute-bounce-v5';
+const CACHE_NAME = 'digitahinos-flauta-v6';
 const CORE = ['./', './index.html', './manifest.json', './pro-config.js'];
 const EXTRA = [
   './icon-192x192.png', './icon-512x512.png', './apple-touch-icon.png', './favicon-32x32.png',
