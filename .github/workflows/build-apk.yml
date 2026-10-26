@@ -91,7 +91,7 @@ jobs:
           fi
           UNSIGNED=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "APK sem assinatura: $UNSIGNED"
-          OUT="FluteBounce-v${VERSION_NAME}-b${RUN_NUMBER}.apk"
+          OUT="DigitaHinos-Flauta-v${VERSION_NAME}-b${RUN_NUMBER}.apk"
           "$BT/zipalign" -p -f 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
@@ -112,7 +112,7 @@ jobs:
       - name: Guardar o APK nos artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: FluteBounce-APK
+          name: DigitaHinos-Flauta-APK
           path: ${{ env.APK_FILE }}
           retention-days: 30
 
@@ -123,6 +123,6 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           gh release create "v${VERSION_NAME}-b${RUN_NUMBER}" "$APK_FILE" \
-            --title "Flute Bounce ${VERSION_NAME} (build ${RUN_NUMBER})" \
+            --title "DigitaHinos Flauta ${VERSION_NAME} (build ${RUN_NUMBER})" \
             --notes "APK assinado. Baixe o arquivo .apk abaixo e instale no Android." \
             --target "${GITHUB_SHA}"
