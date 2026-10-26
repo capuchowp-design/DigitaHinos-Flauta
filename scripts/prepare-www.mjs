@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // ===== Opções =====
-const APP_NAME = 'Flute Bounce';
+const APP_NAME = 'DigitaHinos Flauta';
 const KEEP_DONATION_BUTTON = true; // coloque false para esconder o botão "PIX — Apoiar" dentro do APK
 // ==================
 
@@ -74,8 +74,8 @@ html = html.replace(acceptRe, '$1');
 
 // 5) Exportar MIDI: no Android usa a folha "Compartilhar" (salvar em Arquivos/Drive, enviar...)
 replaceOnce(
-  /const url=URL\.createObjectURL\(new Blob\(\[new Uint8Array\(all\)\],\{type:'audio\/midi'\}\)\);\s*const a=document\.createElement\('a'\); a\.href=url; a\.download='flutebounce\.mid'; a\.click\(\);\s*URL\.revokeObjectURL\(url\);/,
-  "window.fbSaveFile('flutebounce.mid',new Uint8Array(all),'audio/midi');",
+  /const url=URL\.createObjectURL\(new Blob\(\[new Uint8Array\(all\)\],\{type:'audio\/midi'\}\)\);\s*const a=document\.createElement\('a'\); a\.href=url; a\.download='digitahinos-flauta\.mid'; a\.click\(\);\s*URL\.revokeObjectURL\(url\);/,
+  "window.fbSaveFile('digitahinos-flauta.mid',new Uint8Array(all),'audio/midi');",
   'exportação do MIDI');
 
 // 6) Ajuda de exportação + área segura (barra de status/gestos) + fonte
