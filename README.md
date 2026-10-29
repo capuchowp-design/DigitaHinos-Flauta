@@ -10,3 +10,7 @@
 - Tipos: flauta em dó, flautim e flauta alto em sol (mudam a nota escrita e, portanto, a digitação).
 
 Publique todos os arquivos na raiz do repositório (GitHub Pages). A cada atualização, mude o número em `CACHE_NAME` do `sw.js`.
+
+- Partitura (PDF e ao vivo): diagrama das chaves sob cada nota (vermelho = mão esquerda, verde = direita), pela altura escrita do tipo de flauta escolhido.
+- Acidentes: a partitura usa a mesma grafia do hinário (ex.: Fá♯ continua Fá♯) e a armadura do arquivo, adaptada ao tipo de flauta (flautim / alto em Sol).
+- Repetições: casas lidas pelo número impresso; a repetição volta até completar todas as passagens (casas 1.2. + 3. = 3 passagens).
