@@ -106,6 +106,29 @@ window.fbSaveFile=async function(name,bytes,mime){
 if (!/<\/head>/.test(html)) fail('</head> não encontrado.');
 html = html.replace('</head>', () => helper + '</head>');
 
+// ---- Canal da Google Play (CANAL=play): cobrança só pelo Google Play Billing, sem Pix ----
+if (process.env.CANAL === 'play') {
+  const cfgPath = path.join(WWW, 'pro-config.js');
+  const cfg = {};
+  new Function('window', fs.readFileSync(cfgPath, 'utf8'))({ set PRO_CFG(v) { Object.assign(cfg, v); } });
+  const limpo = {
+    modo: 'play',
+    produtoId: cfg.produtoId || 'pro_desbloqueio',
+    app: cfg.app || 'flute',
+    freeHinos: cfg.freeHinosPlay != null ? cfg.freeHinosPlay : 10,
+    previewSec: cfg.previewSec,
+    playCompra: cfg.playCompra !== false,
+    adRewardedId: cfg.adRewardedId,
+    adHoras: cfg.adHoras || 1,
+    adsTeste: process.env.ADS_TESTE !== 'false'   // true = anúncios de teste do Google (padrão); false só no build de produção
+  };
+  fs.writeFileSync(cfgPath, 'window.PRO_CFG = ' + JSON.stringify(limpo, null, 2) + ';\n');
+  html = html.replace(/\/\*PIX-JS-START\*\/[\s\S]*?\/\*PIX-JS-END\*\//g, '').replace(/<!--PIX-START-->[\s\S]*?<!--PIX-END-->/g, '');
+  if (/meuidwp|proPixPayload|proActivate|proCall\(|script\.google\.com|id="btnPix"|getElementById\('pixModal'\)/.test(html)) fail('Sobrou Pix/ativação no index.html do canal play');
+  if (/meuidwp|pixKey|scriptUrl|whatsapp/.test(fs.readFileSync(cfgPath, 'utf8'))) fail('Sobrou Pix no pro-config.js do canal play');
+  console.log('Canal play: Pix removido, modo Google Play Billing + anúncios ativo.');
+}
+
 fs.writeFileSync(path.join(WWW, 'index.html'), html);
 
 // ---- Configuração do Capacitor ----
