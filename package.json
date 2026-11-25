@@ -1,18 +1,20 @@
 {
   "name": "digitahinos-flauta",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "DigitaHinos Flauta - hinos e visualizador MIDI com flauta transversal (empacotado como APK com Capacitor)",
   "scripts": {
     "prepare-www": "node scripts/prepare-www.mjs"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^8.0.0",
     "@capacitor/android": "8.5.3",
     "@capacitor/cli": "8.5.3",
     "@capacitor/core": "8.5.3",
     "@capacitor/device": "^8.0.0",
     "@capacitor/filesystem": "8.1.4",
     "@capacitor/share": "8.0.3",
+    "@capgo/native-purchases": "^8.0.0",
     "@fontsource/inter": "5.3.0",
     "sharp": "0.35.5",
     "tone": "14.8.49"

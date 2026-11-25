@@ -456,6 +456,7 @@ window.FLUTE_SAMPLES={"v":2,"roots":[[69,4.10145,5.50075,"SUQzBAAAAAAAI1RTU0UAAA
         </button>
         <div class="synth-badge" id="synthBadge"><span class="dot"></span>Carregando…</div>
         <span class="file-name" id="fileName"></span>
+        <button class="tab-btn" id="proBtn" title="Modo Pro: todos os hinos completos">⭐ Pro</button>
         <button class="tab-btn" id="hinosBtn" title="Biblioteca de hinos">📖 <span>Hinos</span></button>
         <button class="theme-btn" id="themeBtn" title="Alternar modo claro/escuro">🌙</button>
         <label class="file-label">
@@ -489,10 +490,11 @@ window.FLUTE_SAMPLES={"v":2,"roots":[[69,4.10145,5.50075,"SUQzBAAAAAAAI1RTU0UAAA
                     <button class="welcome-compose" onclick="switchView('score')">✏ Compor</button>
                 </div>
                 <div class="support-btns" style="margin-top:12px;">
-                    <button class="btn-pix" id="btnPix">
+<!--PIX-START-->                    <button class="btn-pix" id="btnPix">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                         PIX — Apoiar
                     </button>
+<!--PIX-END-->
                     <button class="btn-install hidden" id="btnInstall">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Instalar App
@@ -500,7 +502,7 @@ window.FLUTE_SAMPLES={"v":2,"roots":[[69,4.10145,5.50075,"SUQzBAAAAAAAI1RTU0UAAA
                 </div>
             </div>
 
-            <!-- PIX MODAL -->
+<!--PIX-START-->            <!-- PIX MODAL -->
             <div id="pixModal" class="hidden">
                 <div class="pix-box">
                     <div class="pix-title">☕ PIX</div>
@@ -517,6 +519,7 @@ window.FLUTE_SAMPLES={"v":2,"roots":[[69,4.10145,5.50075,"SUQzBAAAAAAAI1RTU0UAAA
                 </div>
             </div>
 
+<!--PIX-END-->
             <div class="drop-overlay" id="dropOverlay">
                 <div class="drop-message">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1366,11 +1369,110 @@ function loadMidiFile(file){
 
 // ======================== MODO PRO (grátis x pro) ========================
 // Grátis: todos os hinos, mas só PRO_CFG.previewSec s de reprodução (qualquer voz); hinos 1..freeHinos completos.
-// Pro: tudo liberado, ativado com um código de uso único (1 código = 1 aparelho) validado numa planilha Google (Apps Script).
-const PRO_CFG=window.PRO_CFG||{app:'app',scriptUrl:'',pixKey:'',pixName:'',pixCity:'',price:0,whatsapp:'',freeHinos:5,previewSec:15};
-const PRO={ok:true,code:'',dev:'',last:0,native:false,devId:''};
+// Pro: tudo liberado. Site/PWA e APK (modo 'pix'): código de uso único (1 código = 1 aparelho) validado numa planilha Google (Apps Script).
+// Google Play (modo 'play'): anúncio premiado libera 1 hino por PRO_CFG.adHoras h; Pro opcional pelo Google Play Billing.
+const PRO_CFG=window.PRO_CFG||{app:'flute',modo:'pix',produtoId:'pro_desbloqueio',scriptUrl:'',pixKey:'',pixName:'',pixCity:'',price:0,whatsapp:'',freeHinos:50,previewSec:15};
+const PRO={ok:false,code:'',dev:'',last:0,native:false,devId:''};
 function proSave(){ try{ if(PRO.ok) localStorage.setItem('proState',JSON.stringify({code:PRO.code,dev:PRO.dev,last:PRO.last})); else localStorage.removeItem('proState'); }catch(e){} }
 function proLoad(){ try{ const s=JSON.parse(localStorage.getItem('proState')||'null'); if(s&&s.code){ PRO.ok=true; PRO.code=s.code; PRO.dev=s.dev||''; PRO.last=s.last||0; } }catch(e){} }
+// ---- Anúncio premiado (AdMob, só no modo 'play'): libera UM hino por PRO_CFG.adHoras hora(s) ----
+function proAdMap(){ if(!PRO.ad){ try{ PRO.ad=JSON.parse(localStorage.getItem('proAd')||'{}')||{}; }catch(e){ PRO.ad={}; } } return PRO.ad; }
+function proAdActive(n){ const t=proAdMap()[n]; return !!t&&Date.now()<t; }
+function proAdSave(){ try{ const m=proAdMap(), now=Date.now(); Object.keys(m).forEach(k=>{ if(m[k]<now) delete m[k]; }); localStorage.setItem('proAd',JSON.stringify(m)); }catch(e){} }
+function proAds(){ try{ const C=window.Capacitor; return (PRO_CFG.modo==='play'&&PRO_CFG.adRewardedId&&C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.AdMob)||null; }catch(e){ return null; } }
+let proAdInit=null;
+function proAdStart(){
+    if(proAdInit) return proAdInit;
+    const A=proAds();
+    proAdInit=(async()=>{
+        await A.initialize({initializeForTesting:!!PRO_CFG.adsTeste});
+        try{ const ci=await A.requestConsentInfo(); if(ci&&ci.isConsentFormAvailable&&String(ci.status).toUpperCase()==='REQUIRED') await A.showConsentForm(); }catch(e){}   // consentimento (UE/Reino Unido), se configurado no AdMob
+    })().catch(e=>{ proAdInit=null; throw e; });
+    return proAdInit;
+}
+// resolve se o usuário assistiu até o fim (hino liberado); lança erro caso contrário
+async function proAdWatch(n){
+    const A=proAds(); if(!A) throw new Error('indisponivel');
+    await proAdStart();
+    let rewarded=false; const subs=[];
+    try{
+        try{ subs.push(await A.addListener('onRewardedVideoAdReward',()=>{ rewarded=true; })); }catch(e){}
+        await A.prepareRewardVideoAd({adId:PRO_CFG.adRewardedId,isTesting:!!PRO_CFG.adsTeste});
+        const r=await A.showRewardVideoAd();
+        if(r&&(r.amount!==undefined||r.type!==undefined)) rewarded=true;
+    } finally { subs.forEach(sb=>{ try{ sb.remove(); }catch(e){} }); }
+    if(!rewarded) throw new Error('nao_assistiu');
+    proAdMap()[n]=Date.now()+(PRO_CFG.adHoras||1)*3600e3; proAdSave();
+}
+// ---- Google Play Billing (modo 'play'): a Play guarda quem comprou; o Pro volta ao reinstalar com a mesma conta Google ----
+function proBilling(){ try{ const C=window.Capacitor; return (C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.NativePurchases)||null; }catch(e){ return null; } }
+function proPlay(){ return PRO_CFG.modo==='play'; }
+async function proPlayHas(){
+    const B=proBilling(); if(!B) throw new Error('sem_billing');
+    const r=await B.getPurchases({productType:'inapp'});
+    const list=Array.isArray(r)?r:(r&&r.purchases)||[];
+    return list.some(p=>{ if(!p||p.productIdentifier!==PRO_CFG.produtoId) return false; const st=String(p.purchaseState==null?'':p.purchaseState).toUpperCase(); return st!=='2'&&st!=='PENDING'; });
+}
+function proPlayOn(){ PRO.ok=true; PRO.code='GOOGLE PLAY'; PRO.dev=''; PRO.last=Date.now(); proSave(); proRefresh(); }
+async function proInitPlay(){
+    proLoad(); proRefresh();
+    if(!proBilling()) return;
+    try{
+        const has=await proPlayHas();
+        if(has&&!PRO.ok) proPlayOn();
+        else if(!has&&PRO.ok){ PRO.ok=false; proSave(); proRefresh(); }   // reembolso/estorno
+    }catch(e){}                                                              // sem conexão com a Play: mantém o que está salvo
+}
+async function proRenderPlay(){
+    const box=document.getElementById('proBody'); if(!box) return;
+    const free='<b>Grátis:</b> hinos 1 a '+PRO_CFG.freeHinos+' completos e '+PRO_CFG.previewSec+' s de prévia nos demais (todas as vozes).<br>';
+    if(PRO.ok){
+        box.innerHTML='<div class="pro-ok">✓ Pro ativo</div><p class="pro-p">Todos os hinos estão liberados, completos e com qualquer voz.</p><p class="pro-p pro-small">A compra fica ligada à sua conta Google. Se reinstalar o app ou trocar de aparelho, use “Restaurar compra”.</p><div class="pro-row"><button class="pro-btn sec" id="proRestore">Restaurar compra</button></div><div class="pro-msg" id="proMsg"></div>';
+    } else {
+        const n=state.hinoN;
+        const msgTop=proReason==='fim'?'Fim da prévia de '+PRO_CFG.previewSec+' segundos.':proReason==='seek'?'A prévia grátis toca só os primeiros '+PRO_CFG.previewSec+' segundos.':'';
+        const canAd=!!proAds()&&n!=null&&n>PRO_CFG.freeHinos&&!proAdActive(n);
+        const canBuy=PRO_CFG.playCompra!==false&&!!proBilling();
+        let price=''; if(canBuy){ try{ const r=await proBilling().getProduct({productIdentifier:PRO_CFG.produtoId,productType:'inapp'}); price=(r&&r.product&&r.product.priceString)||''; }catch(e){} }
+        box.innerHTML=(msgTop?'<div class="pro-top">'+msgTop+'</div>':'')+
+          '<p class="pro-p">'+free+'<b>Liberar um hino:</b> assista a um anúncio em vídeo e toque o hino completo por '+(PRO_CFG.adHoras||1)+' h.'+(canBuy?'<br><b>Pro:</b> todos os hinos completos, sem anúncios. Pagamento único pela Google Play'+(price?' · <b class="pro-price"></b>':'')+'.':'')+'</p>'+
+          (canAd?'<div class="pro-row"><button class="pro-btn" id="proAdBtn">▶ Ver anúncio e liberar o hino '+n+' por '+(PRO_CFG.adHoras||1)+' h</button></div>':(n==null?'<p class="pro-p pro-small">Abra um hino da biblioteca e toque em ⭐ Pro para liberá-lo com um anúncio.</p>':''))+
+          (canBuy?'<div class="pro-row"><button class="pro-btn sec" id="proBuy">Comprar Pro</button><button class="pro-btn sec" id="proRestore">Restaurar compra</button></div>':'')+
+          '<div class="pro-msg" id="proMsg"></div>';
+        const pe=box.querySelector('.pro-price'); if(pe) pe.textContent=price;
+        const adb=document.getElementById('proAdBtn');
+        if(adb) adb.onclick=async()=>{
+            const m=document.getElementById('proMsg'); m.textContent='Carregando o anúncio…'; m.className='pro-msg'; adb.disabled=true;
+            try{
+                await proAdWatch(n);
+                toast('Hino '+n+' liberado por '+(PRO_CFG.adHoras||1)+' h ✓','success'); proClose(); proRefresh();
+            }catch(e){
+                adb.disabled=false;
+                m.textContent=(e&&e.message==='nao_assistiu')?'Assista ao anúncio até o fim para liberar o hino.':'Anúncio indisponível agora. Verifique a internet e tente de novo mais tarde.'; m.className='pro-msg err';
+            }
+        };
+        const buy=document.getElementById('proBuy');
+        if(buy) buy.onclick=async()=>{
+            const m=document.getElementById('proMsg'); m.textContent='Abrindo a Google Play…'; m.className='pro-msg'; buy.disabled=true;
+            try{
+                await proBilling().purchaseProduct({productIdentifier:PRO_CFG.produtoId,productType:'inapp',quantity:1});
+                proPlayOn(); toast('Pro ativado! Obrigado pelo apoio ✓','success'); proRender();
+            }catch(e){
+                buy.disabled=false; const t=String((e&&e.message)||e);
+                m.textContent=/cancel/i.test(t)?'Compra cancelada.':'Não foi possível concluir a compra. Tente de novo.'; m.className='pro-msg err';
+            }
+        };
+    }
+    const rb=document.getElementById('proRestore');
+    if(rb) rb.onclick=async()=>{
+        const m=document.getElementById('proMsg'); m.textContent='Consultando a Google Play…'; m.className='pro-msg';
+        try{
+            if(await proPlayHas()){ proPlayOn(); toast('Compra restaurada ✓','success'); proRender(); }
+            else { m.textContent='Nenhuma compra do Pro encontrada nesta conta Google.'; m.className='pro-msg err'; }
+        }catch(e){ m.textContent='Sem conexão com a Google Play. Tente de novo.'; m.className='pro-msg err'; }
+    };
+}
+/*PIX-JS-START*/
 async function proSha(txt){
     try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)); return [...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,'0')).join(''); }
     catch(e){ let h=0; for(const ch of txt) h=(h*31+ch.charCodeAt(0))|0; return 'x'+(h>>>0).toString(16); }
@@ -1407,7 +1509,7 @@ async function proActivate(raw){
     if(r&&r.ok){ PRO.ok=true; PRO.code=code.toUpperCase(); PRO.dev=dev; PRO.last=Date.now(); proSave(); proRefresh(); return {ok:true,status:r.status}; }
     return {ok:false,msg:PRO_MSG[r&&r.erro]||'Não foi possível ativar.'};
 }
-async function proInit(){
+async function proInitPix(){
     proLoad(); proRefresh();
     try{
         const dev=await proDevice();
@@ -1427,12 +1529,25 @@ async function proInit(){
         }
     }catch(e){}
 }
+/*PIX-JS-END*/
+// ---- despacho por canal ----
+function proInit(){
+    if(proPlay()) return proInitPlay();
+    if(typeof proInitPix==='function') return proInitPix();
+    proLoad(); proRefresh();
+}
+function proRender(){
+    if(proPlay()) return proRenderPlay();
+    if(typeof proRenderPix==='function') return proRenderPix();
+}
 // limite de reprodução do hino atual (Infinity = sem limite)
 function proLimit(){
     if(PRO.ok) return Infinity;
     const n=state.hinoN; if(n==null||n<=PRO_CFG.freeHinos) return Infinity;
+    if(proAdActive(n)) return Infinity;                 // hino liberado por anúncio (tempo limitado)
     return PRO_CFG.previewSec;
 }
+/*PIX-JS-START*/
 // ---- Pix "copia e cola" (BR Code estático, com valor) ----
 function proCrc16(s){ let c=0xFFFF; for(let i=0;i<s.length;i++){ c^=s.charCodeAt(i)<<8; for(let j=0;j<8;j++) c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF; } return c.toString(16).toUpperCase().padStart(4,'0'); }
 function proPixPayload(){
@@ -1443,6 +1558,7 @@ function proPixPayload(){
     let p=f('00','01')+f('26',mai)+f('52','0000')+f('53','986')+(amt?f('54',amt):'')+f('58','BR')+f('59',clean(PRO_CFG.pixName,25)||'RECEBEDOR')+f('60',clean(PRO_CFG.pixCity,15)||'BRASIL')+f('62',f('05','***'))+'6304';
     return p+proCrc16(p);
 }
+/*PIX-JS-END*/
 // ---- interface ----
 function proRefresh(){
     const b=document.getElementById('proBtn'); if(b){ b.textContent=PRO.ok?'✓ Pro':'⭐ Pro'; b.classList.toggle('pro-on',PRO.ok); }
@@ -1458,7 +1574,8 @@ function proCopyOld(txt,done){ const t=document.createElement('textarea'); t.val
 let proReason='';
 function proPaywall(reason){ proReason=reason||''; document.getElementById('mPro').hidden=false; document.body.style.overflow='hidden'; proRender(); }
 function proClose(){ document.getElementById('mPro').hidden=true; document.body.style.overflow=''; }
-async function proRender(){
+/*PIX-JS-START*/
+async function proRenderPix(){
     const box=document.getElementById('proBody'); if(!box) return;
     const price=PRO_CFG.price>0?'R$ '+Number(PRO_CFG.price).toFixed(2).replace('.',','):'';
     if(PRO.ok){
@@ -1490,6 +1607,7 @@ async function proRender(){
     document.getElementById('proGo').onclick=go;
     document.getElementById('proCode').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
 }
+/*PIX-JS-END*/
 
 // ---- biblioteca de hinos (pasta hinos/ com index.json) ----
 let HINOS=null;
@@ -1501,7 +1619,7 @@ function renderHinos(){
     const list=HINOS.filter(h=>!q||String(h.n).padStart(3,'0').includes(q.replace(/^0+(?=\d)/,''))||String(h.n)===q||normTxt(h.t).includes(q));
     if(!list.length){ box.textContent='Nenhum hino encontrado.'; return; }
     const fr=document.createDocumentFragment();
-    list.forEach(h=>{ const b=document.createElement('button'); b.className='hino-item'; const lock=!PRO.ok&&h.n>PRO_CFG.freeHinos; b.innerHTML='<b>'+String(h.n).padStart(3,'0')+'</b><span style="flex:1"></span>'+(lock?'<small style="opacity:.65;white-space:nowrap">🔒 '+PRO_CFG.previewSec+'s</small>':''); b.children[1].textContent=h.t; b.onclick=()=>openHino(h); fr.appendChild(b); });
+    list.forEach(h=>{ const b=document.createElement('button'); b.className='hino-item'; const lock=!PRO.ok&&h.n>PRO_CFG.freeHinos&&!proAdActive(h.n); b.innerHTML='<b>'+String(h.n).padStart(3,'0')+'</b><span style="flex:1"></span>'+(lock?'<small style="opacity:.65;white-space:nowrap">🔒 '+PRO_CFG.previewSec+'s</small>':''); b.children[1].textContent=h.t; b.onclick=()=>openHino(h); fr.appendChild(b); });
     box.appendChild(fr);
 }
 function closeHinos(){ document.getElementById('mHinos').hidden=true; }
@@ -1521,6 +1639,7 @@ async function openHino(h){
     }catch(e){ loadingOverlay.classList.remove('active'); toast('Erro: '+e.message); }
 }
 document.getElementById('hinosBtn').addEventListener('click',openHinos);
+document.getElementById('proBtn').addEventListener('click',()=>proPaywall(''));
 document.getElementById('proClose').addEventListener('click',proClose);
 document.getElementById('mPro').addEventListener('click',e=>{ if(e.target.id==='mPro') proClose(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') proClose(); });
@@ -1528,6 +1647,7 @@ document.getElementById('hinoClose').addEventListener('click',closeHinos);
 document.getElementById('mHinos').addEventListener('click',e=>{ if(e.target.id==='mHinos') closeHinos(); });
 document.getElementById('hinoQ').addEventListener('input',renderHinos);
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeHinos(); });
+proInit();
 
 async function applyNotes(notes, duration, opts){
     opts=opts||{};
@@ -3048,6 +3168,7 @@ function idleDraw(){
 }
 idleDraw();
 
+/*PIX-JS-START*/
 // ======================== PIX MODAL ========================
 const PIX_KEY = 'meuidwp@duck.com';
 
@@ -3070,6 +3191,7 @@ document.getElementById('btnCopyPix').addEventListener('click', () => {
     });
 });
 
+/*PIX-JS-END*/
 // ======================== PWA INSTALL ========================
 let deferredInstallPrompt = null;
 const btnInstall = document.getElementById('btnInstall');
