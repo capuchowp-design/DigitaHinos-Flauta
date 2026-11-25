@@ -3,7 +3,7 @@ window.PRO_CFG = {
   modo: 'pix',                                  // 'pix' = site (PWA) e APK | 'play' = versão da Google Play (o workflow define sozinho)
   produtoId: 'pro_desbloqueio',                 // ID do produto criado na Play Console (só vale no modo 'play')
   app: 'flute',                                 // nome do app na planilha (gere os códigos com app = flute)
-  scriptUrl: 'COLE_AQUI_A_MESMA_URL_DO_SCRIPT_DO_TROMPETE',   // URL /exec do Apps Script (a mesma do Trompete e da Tuba)
+  scriptUrl: 'https://script.google.com/macros/s/AKfycbwx_CEnVMpRdDSI1mkXNNoLwQLf0X_0gCHZRuWYfosaGGJUz3bxhFyc-zOviWb64sVH/exec',   // URL /exec do Apps Script (a mesma do Trompete e da Tuba)
   pixKey: 'meuidwp@duck.com',                   // chave Pix (e-mail)
   pixName: 'WESLEY PHILIP A CAPUCHO',           // nome do recebedor (até 25 letras, sem acento)
   pixCity: 'SAO SEBASTIAO',                     // cidade (até 15 letras, sem acento)
