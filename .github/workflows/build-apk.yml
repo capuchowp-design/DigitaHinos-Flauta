@@ -7,6 +7,22 @@ on:
         description: "Versão que aparece para o usuário (ex.: 1.0.0)"
         required: true
         default: "1.0.0"
+      canal:
+        description: "play = .aab para a Google Play (Billing + anúncios, sem Pix) | apkpure = .apk com Pix (site/APK)"
+        type: choice
+        options: [apkpure, play]
+        default: apkpure
+      anuncios_teste:
+        description: "Marcado = anúncios de TESTE do Google (use nos testes). DESMARQUE só no build que vai para produção."
+        type: boolean
+        default: true
+
+env:
+  CANAL: ${{ inputs.canal || 'apkpure' }}
+  ADS_TESTE: ${{ inputs.anuncios_teste == false && 'false' || 'true' }}
+  # ID do APP no AdMob da Flauta (formato ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY).
+  # Este é o ID de TESTE do Google: o build de produção é recusado enquanto não trocar.
+  ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
 
 permissions:
   contents: write
@@ -45,16 +61,34 @@ jobs:
       - name: Instalar dependências
         run: npm install --no-audit --no-fund
 
+      - name: Conferir IDs de anúncio no build de produção (canal play)
+        if: env.CANAL == 'play' && env.ADS_TESTE == 'false'
+        run: |
+          if grep -q "3940256099942544" pro-config.js || echo "$ADMOB_APP_ID" | grep -q "3940256099942544"; then
+            echo "::error::Build de PRODUÇÃO com ID de anúncio de TESTE. Troque adRewardedId (pro-config.js) e ADMOB_APP_ID (este arquivo) pelos IDs reais do AdMob da Flauta."
+            exit 1
+          fi
+
       - name: Preparar o app (www)
         env:
           OWNER: ${{ github.repository_owner }}
           APP_ID: ${{ vars.APP_ID }}
+          CANAL: ${{ env.CANAL }}
+          ADS_TESTE: ${{ env.ADS_TESTE }}
         run: node scripts/prepare-www.mjs
 
       - name: Criar projeto Android
         run: |
           npx cap add android
           npx cap sync android
+
+      - name: ID do app AdMob e permissão AD_ID no AndroidManifest
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"$ADMOB_APP_ID\"/>\n    </application>#" $M
+          grep -q "APPLICATION_ID" $M || { echo "::error::Não consegui inserir o ID do AdMob no AndroidManifest"; exit 1; }
+          grep -q "permission.AD_ID" $M || sed -i "s#</manifest>#    <uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>\n</manifest>#" $M
+          grep -q "permission.AD_ID" $M || { echo "::error::Não consegui inserir a permissão AD_ID no AndroidManifest"; exit 1; }
 
       - name: Ajustar versão, ícones e abertura
         env:
@@ -70,10 +104,40 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-$API" || true
 
       - name: Compilar o APK (release)
+        if: env.CANAL != 'play'
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
+      - name: Compilar e assinar o AAB (canal play)
+        if: env.CANAL == 'play'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          (cd android && chmod +x gradlew && ./gradlew bundleRelease --no-daemon --stacktrace)
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+          OUT="DigitaHinos-Flauta-v${VERSION_NAME}-b${RUN_NUMBER}.aab"
+          jarsigner -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" \
+            -signedjar "$OUT" android/app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          unzip -p "$OUT" base/manifest/AndroidManifest.xml | strings | grep -q "com.google.android.gms.permission.AD_ID" \
+            || { echo "::error::A permissão AD_ID NÃO está no AAB final."; exit 1; }
+          echo "AAB_FILE=$OUT" >> "$GITHUB_ENV"
+          echo "AAB assinado com a SUA chave: $OUT"
+
+      - name: Guardar o AAB nos artefatos
+        if: env.CANAL == 'play'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitaHinos-Flauta-AAB
+          path: ${{ env.AAB_FILE }}
+          retention-days: 30
+
       - name: Alinhar e assinar com a SUA chave
+        if: env.CANAL != 'play'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -110,6 +174,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guardar o APK nos artefatos
+        if: env.CANAL != 'play'
         uses: actions/upload-artifact@v4
         with:
           name: DigitaHinos-Flauta-APK
@@ -117,6 +182,7 @@ jobs:
           retention-days: 30
 
       - name: Publicar em Releases (link direto para baixar no celular)
+        if: env.CANAL != 'play'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_NAME: ${{ github.event.inputs.version_name }}
