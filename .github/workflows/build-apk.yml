@@ -21,8 +21,8 @@ env:
   CANAL: ${{ inputs.canal || 'apkpure' }}
   ADS_TESTE: ${{ inputs.anuncios_teste == false && 'false' || 'true' }}
   # ID do APP no AdMob da Flauta (formato ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY).
-  # Este é o ID de TESTE do Google: o build de produção é recusado enquanto não trocar.
-  ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
+  # ID real do app da Flauta no AdMob (o build de produção é recusado se voltar ao ID de teste do Google).
+  ADMOB_APP_ID: ca-app-pub-4518875317226768~2899016022
 
 permissions:
   contents: write
@@ -76,6 +76,13 @@ jobs:
           CANAL: ${{ env.CANAL }}
           ADS_TESTE: ${{ env.ADS_TESTE }}
         run: node scripts/prepare-www.mjs
+
+      - name: Mostrar o nome do pacote (permanente na Play)
+        run: |
+          APP=$(node -p "require('./capacitor.config.json').appId")
+          echo "Pacote (appId): $APP"
+          echo "## Pacote: $APP" >> "$GITHUB_STEP_SUMMARY"
+          case "$APP" in *seunome*) echo "::warning::O appId ainda tem 'seunome'. Edite capacitor.config.json (ou crie a variável APP_ID) ANTES do primeiro envio à Play: depois de publicado, não dá para mudar.";; esac
 
       - name: Criar projeto Android
         run: |
