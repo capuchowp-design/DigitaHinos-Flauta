@@ -34,7 +34,36 @@
     <div class="hino-body"><input type="search" id="hinoQ" placeholder="Buscar por número ou título…" autocomplete="off"><div id="hinoList"></div></div>
   </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script src="vendor/Tone.js"></script>
+<script>window.Tone||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"><\/script>');</script>
+<script>
+// ===== DESEMPENHO: "modo leve" para celulares fracos =====
+// Automático (pouca memória / poucos núcleos / celular). O botão ⚡ no topo força ligado/desligado e guarda a escolha.
+window.LITE=(function(){
+    try{ var s=localStorage.getItem('fb-lite'); if(s==='1') return true; if(s==='0') return false; }catch(e){}
+    var mem=navigator.deviceMemory||0, cores=navigator.hardwareConcurrency||0;
+    var celular=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+    return celular||(mem>0&&mem<=2)||(cores>0&&cores<=4);
+})();
+// Áudio: buffer grande ("playback") + antecedência maior no agendamento das notas (evita picotes).
+try{
+    var LA=window.LITE?0.6:0.25;
+    var LAT='playback'; try{ var lv=localStorage.getItem('fb-lat'); if(lv==='interactive'||lv==='balanced'||lv==='playback') LAT=lv; }catch(e){}
+    window.FB_LAT=LAT;
+    var ctx=new Tone.Context({latencyHint:LAT, lookAhead: LA});
+    Tone.setContext(ctx);
+    ctx.lookAhead = LA;
+    try{ ctx.rawContext.addEventListener('statechange',function(){ if(ctx.rawContext.state!=='running'&&!document.hidden){ try{ ctx.rawContext.resume(); }catch(e){} } }); }catch(e){}
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden&&ctx.rawContext.state!=='running'){ try{ ctx.rawContext.resume(); }catch(e){} } });
+}catch(e){ console.warn('contexto de áudio padrão', e); }
+// Desenho: sombras/brilhos (shadowBlur) são o recurso mais pesado do canvas em celular fraco
+if(window.LITE&&window.CanvasRenderingContext2D){
+    try{
+        var d=Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype,'shadowBlur');
+        if(d&&d.set) Object.defineProperty(CanvasRenderingContext2D.prototype,'shadowBlur',{configurable:true,enumerable:d.enumerable,get:d.get,set:function(){ d.set.call(this,0); }});
+    }catch(e){}
+}
+</script>
     <script src="pro-config.js"></script>
     <script>
 /* Gravacoes reais de flauta transversal (Versilian Studio Community Sample Library 2, CC0 / dominio publico, via tonejs-instruments, MIT). 44,1 kHz, mp3 112 kbps, loop pitch-sincronizado no final. Formato: [nota MIDI, inicio do loop (s), fim do loop (s), mp3 base64] */
@@ -458,6 +487,7 @@ window.FLUTE_SAMPLES={"v":2,"roots":[[69,4.10145,5.50075,"SUQzBAAAAAAAI1RTU0UAAA
         <span class="file-name" id="fileName"></span>
         <button class="tab-btn" id="proBtn" title="Modo Pro: todos os hinos completos">⭐ Pro</button>
         <button class="tab-btn" id="hinosBtn" title="Biblioteca de hinos">📖 <span>Hinos</span></button>
+        <button class="theme-btn" id="liteBtn" title="Modo leve: para celulares fracos (som sem picotar)">⚡</button>
         <button class="theme-btn" id="themeBtn" title="Alternar modo claro/escuro">🌙</button>
         <label class="file-label">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1123,9 +1153,11 @@ const FLUTE_VIB = 6;
       this.bus = actx.createGain(); this.bus.gain.value = 1.5;
       const dry = actx.createGain(); dry.gain.value = 0.86;
       const wet = actx.createGain(); wet.gain.value = 0.08;
-      const conv = actx.createConvolver(); conv.buffer = makeIR(actx);
       this.bus.connect(dry); dry.connect(this.master);
-      this.bus.connect(conv); conv.connect(wet); wet.connect(this.master);
+      if(!window.LITE){   // modo leve: sem reverb de convolução
+        const conv = actx.createConvolver(); conv.buffer = makeIR(actx);
+        this.bus.connect(conv); conv.connect(wet); wet.connect(this.master);
+      }
     }
     async load(){                                // decodifica as gravações (mp3) no AudioContext
       const dec = b64 => { const bin = atob(b64), u8 = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
@@ -1230,9 +1262,11 @@ async function getOutChain(){
     let head=Tone.getDestination();
     try{
         const limiter=new Tone.Limiter(-1).connect(head); head=limiter;
-        const reverb=new Tone.Reverb({decay:2.2,preDelay:0.012,wet:0.16}).connect(head);
-        await reverb.generate();
-        head=reverb;
+        if(!window.LITE){   // reverb (convolução) é pesado: no modo leve fica desligado
+            const reverb=new Tone.Reverb({decay:2.2,preDelay:0.012,wet:0.16}).connect(head);
+            await reverb.generate();
+            head=reverb;
+        }
     }catch(e){}
     outChain=head; return head;
 }
@@ -1282,7 +1316,7 @@ function initSampler(){
 
 // ======================== CANVAS RESIZE ========================
 function resizeCanvases(){
-    const dpr=window.devicePixelRatio||1;
+    const dpr=Math.min(window.devicePixelRatio||1, window.LITE?1.5:2.5);   // menos pixels = menos trabalho por quadro
     const mr=canvasContainer.getBoundingClientRect();
     mainCanvas.width=mr.width*dpr; mainCanvas.height=mr.height*dpr;
     mainCanvas.style.width=mr.width+'px'; mainCanvas.style.height=mr.height+'px';
@@ -1675,7 +1709,7 @@ function buildPianoKeys(){
 }
 
 // ======================== PLAYBACK — AUDIO-SYNC FIX ========================
-// Use Tone.Transport as master clock. Animation reads Transport.seconds for sync.
+// Relógio mestre: o do próprio áudio (AudioContext.currentTime), descontando a latência de saída.
 
 async function startPlayback(){
     if(!state.midiLoaded) return;
@@ -1688,29 +1722,41 @@ async function startPlayback(){
     playIcon.style.display='none'; pauseIcon.style.display='block';
     playBtn.classList.add('active');
 
-    // Cancel any previous transport events
-    Tone.Transport.cancel();
-    Tone.Transport.stop();
-
+    // Agendador no relógio do ÁUDIO (não depende da thread principal para cada nota):
+    // a cada ~120 ms entrega ao áudio as notas dos próximos 1,5 s. Se a tela travar um pouco,
+    // as notas já entregues continuam tocando certinhas.
+    schedStop();
     const offset=state.pausedAt;
     const spd=state.speed;
-
-    // Schedule all notes relative to Transport start
-    state.notes.forEach(note=>{
-        if(note.startTime<offset||note.startTime>=proLimit()) return;
-        const tStart=(note.startTime-offset)/spd;
-        const dur=Math.max(0.05, note.duration/spd);
-        Tone.Transport.schedule(time=>{
-            if(!state.isPlaying||!state.sampler||!state.samplerReady) return;
-            try { state.sampler.triggerAttackRelease(nname(note.midi), dur, time, note.velocity); } catch(e){}
-        }, tStart);
-    });
-
-    Tone.Transport.start('+0.05');
+    const list=state.notes.filter(note=>!(note.startTime<offset||note.startTime>=proLimit()))
+                          .sort((a,b)=>a.startTime-b.startTime);
+    const rc=Tone.getContext();
+    _T0=rc.currentTime+0.15;
+    let idx=0;
+    const pump=()=>{
+        if(!state.isPlaying||!state.sampler||!state.samplerReady) return;
+        const now=rc.currentTime, horizon=now+1.5;
+        const D=window._dbg||(window._dbg={sched:0,late:0,skip:0});
+        while(idx<list.length){
+            const n=list[idx];
+            let at=_T0+(n.startTime-offset)/spd;
+            if(at>horizon) break;
+            idx++;
+            const dur=Math.max(0.05,n.duration/spd);
+            if(at<now+0.01){ if(now-at>0.5){ D.skip++; continue; } D.late++; at=now+0.01; }   // muito atrasada: pula; pouco: toca já
+            D.sched++;
+            try{ state.sampler.triggerAttackRelease(nname(n.midi), dur, at, n.velocity); }catch(e){}
+        }
+    };
+    pump();
+    _sched=setInterval(pump,120);
     animate();
 }
 
+let _sched=null, _T0=0;
+function schedStop(){ if(_sched){ clearInterval(_sched); _sched=null; } }
 function clearAudio(){
+    schedStop();
     Tone.Transport.cancel();
     Tone.Transport.stop();
     if(state.sampler&&state.samplerReady){
@@ -1755,12 +1801,17 @@ function seekTo(newTime){
 }
 
 // ======================== ANIMATION (sync via Transport) ========================
+let _lastDraw=0;
 function animate(){
     if(!state.isPlaying) return;
-    // Transport.seconds = time elapsed since Transport.start(), not scaled by speed
-    state.currentTime = state.pausedAt + Tone.Transport.seconds * state.speed;
+    { const rc=Tone.getContext(); state.currentTime = state.pausedAt + Math.max(0, rc.currentTime - _T0 - (rc.rawContext.outputLatency||0)) * state.speed; }
     if(state.currentTime>=state.duration){ stopPlayback(); return; }
     if(state.currentTime>=proLimit()){ stopPlayback(); proPaywall('fim'); return; }
+    if(window.LITE){   // modo leve: desenha no máx. ~30 quadros/s (o som continua exato, o relógio é o do áudio)
+        const t=performance.now();
+        if(t-_lastDraw<32){ state.animFrameId=requestAnimationFrame(animate); return; }
+        _lastDraw=t;
+    }
     updateUI(); drawScene();
     state.animFrameId=requestAnimationFrame(animate);
 }
@@ -3115,6 +3166,21 @@ themeBtn.addEventListener('click',()=>{
 });
 
 // ======================== SERVICE WORKER ========================
+// ======================== MODO LEVE (celulares fracos) ========================
+(function initLite(){
+    const b=document.getElementById('liteBtn'); if(!b) return;
+    const paint=()=>{ b.style.opacity=window.LITE?'1':'.45'; b.style.boxShadow=window.LITE?'0 0 0 2px #fcad2a inset':'none'; b.setAttribute('aria-pressed',window.LITE?'true':'false'); };
+    paint();
+    b.addEventListener('click',()=>{
+        const novo=!window.LITE;
+        const msg=novo?'Ligar o MODO LEVE?\nDeixa o app mais leve e o som sem picotar em celulares fracos (sem reverb e com animação mais simples).\n\nO app será reiniciado.'
+                      :'Desligar o MODO LEVE?\nVolta o visual completo e o reverb.\n\nO app será reiniciado.';
+        if(!confirm(msg)) return;
+        try{ localStorage.setItem('fb-lite',novo?'1':'0'); }catch(e){}
+        location.reload();
+    });
+})();
+
 if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
         // updateViaCache:'none' → o navegador sempre confere se o sw.js mudou
@@ -3972,5 +4038,54 @@ $('scPdf').onclick=async()=>{
 
 </script>
 
+<script>
+/* ===== DIAGNÓSTICO DE ÁUDIO (segure o botão ⚡ por ~1 s) =====
+   Mostra o estado real do áudio no aparelho e deixa testar outras configurações sem recompilar. */
+(function(){
+ try{
+  var btn=document.getElementById('liteBtn'); if(!btn) return;
+  var box=null, rafId=0, fps=0, fc=0, fl=performance.now(), stalls=[], lastT=performance.now();
+  setInterval(function(){ var n=performance.now(), d=n-lastT-50; lastT=n; if(d>0) stalls.push([n,d]); while(stalls.length&&n-stalls[0][0]>5000) stalls.shift(); },50);
+  function maxStall(){ var m=0; stalls.forEach(function(s){ if(s[1]>m) m=s[1]; }); return Math.round(m); }
+  function nat(){ try{ var C=window.Capacitor; return !!(C&&C.isNativePlatform&&C.isNativePlatform()); }catch(e){ return false; } }
+  function txt(){
+    var rc=Tone.getContext(), raw=rc.rawContext, D=window._dbg||{sched:0,late:0,skip:0}, L=[];
+    var syn=(typeof state!=='undefined')&&state.synth&&state.sampler===state.synth;
+    L.push('Áudio: '+raw.state+' · '+raw.sampleRate+' Hz · dica='+(window.FB_LAT||'?'));
+    L.push('Latência base/saída: '+(raw.baseLatency||0).toFixed(3)+' / '+(raw.outputLatency||0).toFixed(3)+' s');
+    L.push('Som: '+(syn?'SINTETIZADOR (sem gravações!)':'gravações de flauta'));
+    L.push('Modo leve: '+(window.LITE?'ligado':'desligado')+' · app nativo: '+(nat()?'sim':'não'));
+    L.push('Notas agendadas: '+D.sched+' · atrasadas: '+D.late+' · puladas: '+D.skip);
+    L.push('Travada máx. (5 s): '+maxStall()+' ms · quadros/s: '+fps);
+    try{ if(performance.memory) L.push('Memória JS: '+Math.round(performance.memory.usedJSHeapSize/1048576)+' MB'); }catch(e){}
+    L.push('Tocando: '+((typeof state!=='undefined'&&state.isPlaying)?'sim':'não'));
+    var m=/(Chrome|Version)\/[\d.]+/.exec(navigator.userAgent||''); L.push('WebView: '+(m?m[0]:'?'));
+    return L.join('\n');
+  }
+  function loop(){ fc++; var n=performance.now(); if(n-fl>=1000){ fps=fc; fc=0; fl=n; } if(box){ pre.textContent=txt(); rafId=requestAnimationFrame(loop); } }
+  var pre=null;
+  function hint(v){ try{ localStorage.setItem('fb-lat',v); }catch(e){} location.reload(); }
+  function open(){
+    if(box) return;
+    box=document.createElement('div');
+    box.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:rgba(0,0,0,.9);color:#e8ddd0;font:11px/1.5 monospace;padding:10px;border-radius:10px;border:1px solid #8a6a2a';
+    pre=document.createElement('pre'); pre.style.cssText='margin:0 0 8px;white-space:pre-wrap;font:inherit'; box.appendChild(pre);
+    function b(label,fn){ var x=document.createElement('button'); x.textContent=label; x.style.cssText='margin:2px 4px 2px 0;padding:6px 9px;border-radius:6px;border:1px solid #8a6a2a;background:#2a1d10;color:#e8ddd0;font:11px sans-serif'; x.onclick=fn; box.appendChild(x); }
+    b('Latência: playback',function(){ hint('playback'); });
+    b('balanced',function(){ hint('balanced'); });
+    b('interactive',function(){ hint('interactive'); });
+    b('Zerar contadores',function(){ window._dbg={sched:0,late:0,skip:0}; stalls=[]; });
+    b('Fechar',close);
+    document.body.appendChild(box); loop();
+  }
+  function close(){ if(box){ box.remove(); box=null; cancelAnimationFrame(rafId); } }
+  var held=false, tm=null;
+  btn.addEventListener('pointerdown',function(){ held=false; clearTimeout(tm); tm=setTimeout(function(){ held=true; if(box) close(); else open(); },900); });
+  ['pointerup','pointerleave','pointercancel'].forEach(function(e){ btn.addEventListener(e,function(){ clearTimeout(tm); }); });
+  btn.addEventListener('contextmenu',function(e){ e.preventDefault(); });
+  btn.addEventListener('click',function(e){ if(held){ e.stopImmediatePropagation(); e.preventDefault(); held=false; } },true);
+ }catch(e){ console.warn('diagnóstico',e); }
+})();
+</script>
 </body>
 </html>

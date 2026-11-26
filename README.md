@@ -19,3 +19,16 @@ Publique todos os arquivos na raiz do repositório (GitHub Pages). A cada atuali
 - Site/PWA e APK: hinos 1–50 grátis, demais 15 s de prévia; Pro por Pix + código na planilha (app = `flute`).
 - Google Play: hinos 1–10 grátis, demais por anúncio premiado (1 h) ou Pro pela Play.
 - Configuração em `pro-config.js`. Workflow: Actions → Gerar APK assinado → canal `apkpure` (.apk) ou `play` (.aab).
+
+## Celulares fracos (modo leve) e áudio
+- **Modo leve (⚡ no topo):** liga sozinho em celulares/aparelhos com pouca memória ou poucos núcleos. Desliga o reverb, tira os brilhos do desenho, limita a animação a ~30 quadros/s e reduz a resolução do canvas. O botão força ligado/desligado e guarda a escolha.
+- **Áudio estável:** buffer grande ("playback"), notas entregues ao relógio do áudio a cada ~120 ms (1,5 s de antecedência) e relógio da animação descontando a latência de saída.
+- **Diagnóstico:** segure o ⚡ por ~1 s para ver estado do áudio, travadas, quadros/s e trocar a dica de latência.
+- **Tone.js local:** `vendor/Tone.js` (funciona offline; se faltar, baixa do CDN).
+
+## Publicar na Google Play
+- **Nome do pacote:** `capacitor.config.json` (campo `appId`). Edite antes do primeiro envio: não muda depois de publicado. A variável `APP_ID` do repositório, se existir, tem prioridade.
+- **Anúncios:** troque `ADMOB_APP_ID` (workflow) e `adRewardedId` (`pro-config.js`) pelos IDs reais do AdMob da Flauta.
+- **Secrets:** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`.
+- **Gerar:** Actions → Gerar APK assinado → `canal = play` (`.aab`).
+- Páginas para a ficha da loja: `privacidade.html`, `terms.html`. `app-ads.txt` fica na raiz do site do desenvolvedor.

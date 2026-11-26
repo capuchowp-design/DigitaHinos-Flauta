@@ -1,7 +1,8 @@
 // Mude este número a CADA publicação nova no GitHub (v3 -> v4 -> v5...)
-const CACHE_NAME = 'digitahinos-flauta-v9';
+const CACHE_NAME = 'digitahinos-flauta-v10';
 const CORE = ['./', './index.html', './manifest.json', './pro-config.js'];
 const EXTRA = [
+  './vendor/Tone.js',
   './icon-192x192.png', './icon-512x512.png', './apple-touch-icon.png', './favicon-32x32.png',
   'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js',
   'https://cdn.jsdelivr.net/fontsource/fonts/inter@5/latin.css'
@@ -51,6 +52,18 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(req).then(res => { const c = res.clone(); caches.open(CACHE_NAME).then(ca => ca.put(req, c)); return res; })
                 .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Tone.js (vendor/) do próprio app: pesado e quase nunca muda -> CACHE PRIMEIRO
+  // (se trocar esse arquivo, mude o número do CACHE_NAME acima)
+  if (url.origin === self.location.origin && /\/vendor\//.test(url.pathname)) {
+    event.respondWith(
+      caches.match(req).then(cached => cached || fetch(req).then(res => {
+        if (res && res.status === 200) { const c = res.clone(); caches.open(CACHE_NAME).then(ca => ca.put(req, c)); }
+        return res;
+      }))
     );
     return;
   }

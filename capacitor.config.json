@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.seunome.flutebounce",
+  "appName": "DigitaHinos Flauta",
+  "webDir": "www",
+  "backgroundColor": "#0f0d0a",
+  "android": {
+    "allowMixedContent": false
+  }
+}
