@@ -13,6 +13,6 @@ window.PRO_CFG = {
   freeHinosPlay: 10,                            // idem na versão da Google Play (lá há o anúncio para liberar 1 hino por 1 h)
   previewSec: 15,                               // segundos de prévia nos demais hinos
   playCompra: true,                             // Play: mostrar também o botão "Comprar Pro" (Google Play Billing). false = só anúncio
-  adRewardedId: 'ca-app-pub-3940256099942544/5224354917',  // TROQUE pelo bloco PREMIADO do AdMob da Flauta (este é o de teste do Google)
+  adRewardedId: 'ca-app-pub-4518875317226768/4870573245',  // bloco PREMIADO do AdMob da Flauta (só vale no modo 'play')
   adHoras: 1                                    // horas de hino liberado ao assistir o anúncio
 };
