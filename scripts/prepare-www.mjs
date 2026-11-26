@@ -13,9 +13,11 @@ const ROOT = process.cwd();
 const WWW = path.join(ROOT, 'www');
 const fail = (m) => { console.error('ERRO: ' + m); process.exit(1); };
 
-// ---- Nome do pacote: io.github.<usuario>.flutebounce (minúsculas, sem hífen) ----
+// ---- Nome do pacote: variável APP_ID > capacitor.config.json > io.github.<usuario>.flutebounce ----
 function makeAppId() {
   if (process.env.APP_ID && process.env.APP_ID.trim()) return process.env.APP_ID.trim();
+  // capacitor.config.json (na raiz do repositório) é a fonte oficial do nome do pacote
+  try { const c = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8')); if (c.appId) return String(c.appId).trim(); } catch (e) {}
   let owner = (process.env.OWNER || 'meuusuario').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (!owner) owner = 'meuusuario';
   if (/^[0-9]/.test(owner)) owner = 'u' + owner;
@@ -29,13 +31,13 @@ fs.mkdirSync(path.join(WWW, 'vendor'), { recursive: true });
 fs.mkdirSync(path.join(WWW, 'fonts'), { recursive: true });
 
 // ---- Arquivos que vão para o APK ----
-for (const f of ['manifest.json', 'pro-config.js', 'favicon-32x32.png', 'apple-touch-icon.png', 'icon-192x192.png', 'icon-512x512.png']) {
+for (const f of ['manifest.json', 'pro-config.js', 'native-bridge.js', 'favicon-32x32.png', 'apple-touch-icon.png', 'icon-192x192.png', 'icon-512x512.png']) {
   if (!fs.existsSync(f)) fail('Arquivo não encontrado na raiz do repositório: ' + f);
   fs.copyFileSync(f, path.join(WWW, f));
 }
 
 // ---- Tone.js e fonte Inter locais (o app funciona offline, sem CDN) ----
-const toneSrc = 'node_modules/tone/build/Tone.js';
+const toneSrc = fs.existsSync('node_modules/tone/build/Tone.js') ? 'node_modules/tone/build/Tone.js' : 'vendor/Tone.js';
 if (!fs.existsSync(toneSrc)) fail('Tone.js não encontrado (rode npm install).');
 fs.copyFileSync(toneSrc, path.join(WWW, 'vendor', 'Tone.js'));
 let fontCss = '';
@@ -58,8 +60,8 @@ function replaceOnce(re, to, what) {
 }
 
 // 1) Tone.js local
-replaceOnce(/<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/tone\/14\.8\.49\/Tone\.js"><\/script>/,
-  '<script src="vendor/Tone.js"></script>', 'Tone.js (CDN)');
+replaceOnce(/<script>window\.Tone\|\|document\.write\('<script src="https:\/\/cdnjs[^\n]*<\/script>/,
+  '', 'Tone.js (fallback CDN)');   // o vendor/Tone.js local já está no index.html
 
 // 2) Fonte local (remove o @import da CDN)
 replaceOnce(/@import url\('https:\/\/cdn\.jsdelivr\.net\/fontsource\/fonts\/inter@5\/latin\.css'\);/, '', '@import da fonte Inter');
@@ -105,6 +107,8 @@ window.fbSaveFile=async function(name,bytes,mime){
 `;
 if (!/<\/head>/.test(html)) fail('</head> não encontrado.');
 html = html.replace('</head>', () => helper + '</head>');
+// Ponte nativa: qualquer download (PDF, MIDI...) vira "Salvar/Compartilhar" do Android
+html = html.replace(/<head[^>]*>/i, (m) => m + '\n<script src="native-bridge.js"></script>');
 
 // ---- Canal da Google Play (CANAL=play): cobrança só pelo Google Play Billing, sem Pix ----
 if (process.env.CANAL === 'play') {
