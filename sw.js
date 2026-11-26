@@ -1,9 +1,9 @@
 // Mude este número a CADA publicação nova no GitHub (v3 -> v4 -> v5...)
-const CACHE_NAME = 'digitahinos-flauta-v10';
+const CACHE_NAME = 'digitahinos-flauta-v11';
 const CORE = ['./', './index.html', './manifest.json', './pro-config.js'];
 const EXTRA = [
   './vendor/Tone.js',
-  './icon-192x192.png', './icon-512x512.png', './apple-touch-icon.png', './favicon-32x32.png',
+  './icon-96x96.png', './icon-192x192.png', './icon-512x512.png', './icon-maskable-192x192.png', './icon-maskable-512x512.png', './apple-touch-icon.png', './favicon-32x32.png',
   'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js',
   'https://cdn.jsdelivr.net/fontsource/fonts/inter@5/latin.css'
 ];

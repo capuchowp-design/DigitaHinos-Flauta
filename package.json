@@ -16,7 +16,6 @@
     "@capacitor/share": "8.0.3",
     "@capgo/native-purchases": "^8.0.0",
     "@fontsource/inter": "5.3.0",
-    "sharp": "0.35.5",
     "tone": "14.8.49"
   }
 }
